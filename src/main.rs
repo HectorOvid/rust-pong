@@ -3,27 +3,25 @@ use tetra::graphics::{self, Color, Texture};
 use tetra::input::{self, Key};
 use tetra::math::Vec2;
 
+const PADDLE_SPEED: f32 = 8.0;
 const WINDOW_WIDTH: f32 = 1280.0;
 const WINDOW_HEIGHT: f32 = 960.0;
 
-struct GameState {
+struct Background {
     blue: f32,
     color_direction: bool,
-    // NOTE: this is only an ID, quasi :)
-    paddle_texture: Texture,
-    other_paddle_texture: Texture,
-    ball: Texture,
 }
 
-impl GameState {
-    fn new(ctx: &mut Context) -> tetra::Result<GameState> {
-        let paddle_texture = Texture::new(ctx, "./res/bar-mini.png")?;
-        let other_paddle_texture = Texture::new(ctx, "./res/fox-pixel.png")?;
-        let ball = Texture::new(ctx, "./res/ball-pixel.png")?;
-        Ok(GameState { blue: 0f32, color_direction: true, paddle_texture, other_paddle_texture, ball })
+impl Background {
+    fn new() -> Background {
+        Background {blue: 0f32, color_direction: true}
     }
 
-    fn update_background(&mut self) -> f32 {
+    fn color(& self) -> Color {
+        Color::rgb(0.2, 0.7, self.blue)
+    }
+
+    fn update(&mut self) -> f32 {
         let mut b;
         if self.color_direction {
             b = self.blue + 0.001;
@@ -43,13 +41,85 @@ impl GameState {
     }
 }
 
-impl State for GameState {
-    fn draw(&mut self, ctx: &mut Context) -> tetra::Result {
-        graphics::clear(ctx, Color::rgb(0.2, 0.7, self.update_background()));
+struct Entity {
+    texture: Texture,
+    position: Vec2<f32>,
+    velocity: Vec2<f32>,
+}
 
-        self.paddle_texture.draw(ctx, Vec2::new(16.0, 16.0));
-        self.other_paddle_texture.draw(ctx, Vec2::new(1000.0, 740.0));
-        self.ball.draw(ctx, Vec2::new(640.0, 400.0));
+impl Entity {
+    fn new(texture: Texture, position: Vec2<f32>, velocity: Vec2<f32>) -> Entity {
+        Entity { texture, position, velocity }
+    }
+
+}
+
+struct GameState {
+    background: Background,
+    player1: Entity,
+    player2: Entity,
+    ball: Entity,
+}
+
+impl GameState {
+    fn new(ctx: &mut Context) -> tetra::Result<GameState> {
+        let player1_texture = Texture::new(ctx, "./res/bar-mini.png")?;
+        let player1_position = Vec2::new(
+            16.0,
+            (WINDOW_HEIGHT - player1_texture.height() as f32) / 2.0,
+        );
+
+        let player2_texture = Texture::new(ctx, "./res/fox-pixel.png")?;
+        let player2_position = Vec2::new(
+            WINDOW_WIDTH - player2_texture.width() as f32 - 16.0,
+            (WINDOW_HEIGHT - player2_texture.height() as f32) / 2.0,
+        );
+
+        let ball_texture = Texture::new(ctx, "./res/ball-pixel.png")?;
+        let ball_position = Vec2::new(
+            WINDOW_WIDTH / 2.0,
+            WINDOW_HEIGHT / 2.0,
+        );
+        let ball_velocity = Vec2::new(
+            1 as f32,
+            1 as f32,
+        );
+
+        Ok(GameState { background: Background::new(),
+            player1: Entity::new(player1_texture, player1_position, Vec2::zero()),
+            player2: Entity::new(player2_texture, player2_position, Vec2::zero()),
+            ball: Entity::new(ball_texture, ball_position, ball_velocity),
+        })
+    }
+
+}
+
+fn draw_entity(ctx: &mut Context, entity: &Entity) {
+
+    entity.texture.draw(ctx, entity.position);
+}
+
+impl State for GameState {
+    fn update(&mut self, ctx: &mut Context) -> tetra::Result {
+        if input::is_key_down(ctx, Key::W) {
+            self.player1.position.y -= PADDLE_SPEED;
+        }
+
+        if input::is_key_down(ctx, Key::S) {
+            self.player1.position.y += PADDLE_SPEED;
+        }
+
+        self.background.update();
+
+        Ok(())
+    }
+
+    fn draw(&mut self, ctx: &mut Context) -> tetra::Result {
+        graphics::clear(ctx, self.background.color());
+
+        draw_entity(ctx, &self.player1);
+        draw_entity(ctx, &self.player2);
+        draw_entity(ctx, &self.ball);
 
         Ok(())
     }
