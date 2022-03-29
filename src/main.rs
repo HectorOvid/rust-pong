@@ -1,5 +1,6 @@
 use tetra::{Context, ContextBuilder, State, TetraError};
-use tetra::graphics::{self, Color, Texture};
+use tetra::graphics::{self, Color, DrawParams, Texture};
+use tetra::graphics::text::{Font, Text};
 use tetra::input::{self, Key};
 use tetra::math::Vec2;
 
@@ -59,6 +60,8 @@ struct GameState {
     player1: Entity,
     player2: Entity,
     ball: Entity,
+    rotation: f32,
+    txt: Text,
 }
 
 impl GameState {
@@ -85,17 +88,20 @@ impl GameState {
             1 as f32,
         );
 
+        let txt = Text::new("SiMiTo", Font::vector(ctx, "./res/lato/Lato-BoldItalic.ttf", 12.0)?);
+
         Ok(GameState { background: Background::new(),
             player1: Entity::new(player1_texture, player1_position, Vec2::zero()),
             player2: Entity::new(player2_texture, player2_position, Vec2::zero()),
             ball: Entity::new(ball_texture, ball_position, ball_velocity),
+            rotation: 0f32,
+            txt,
         })
     }
 
 }
 
 fn draw_entity(ctx: &mut Context, entity: &Entity) {
-
     entity.texture.draw(ctx, entity.position);
 }
 
@@ -111,6 +117,8 @@ impl State for GameState {
 
         self.background.update();
 
+        self.rotation = self.rotation + 0.01f32;
+
         Ok(())
     }
 
@@ -120,6 +128,8 @@ impl State for GameState {
         draw_entity(ctx, &self.player1);
         draw_entity(ctx, &self.player2);
         draw_entity(ctx, &self.ball);
+
+        self.txt.draw(ctx, DrawParams::new().position(Vec2::new(WINDOW_WIDTH / 2f32,50f32)).rotation(self.rotation));
 
         Ok(())
     }
