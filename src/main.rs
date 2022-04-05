@@ -1,9 +1,13 @@
 use tetra::{Context, ContextBuilder, State, TetraError};
-use tetra::graphics::{self, Color, DrawParams, Texture};
+use tetra::graphics::{self, Color, DrawParams, Rectangle, Texture};
 use tetra::graphics::text::{Font, Text};
 use tetra::input::{self, Key};
 use tetra::math::Vec2;
+use tetra::window;
 
+const PADDLE_SPIN: f32 = 4.0;
+const BALL_ACC: f32 = 0.05;
+const BALL_SPEED: f32 = 5.0;
 const PADDLE_SPEED: f32 = 8.0;
 const WINDOW_WIDTH: f32 = 1280.0;
 const WINDOW_HEIGHT: f32 = 960.0;
@@ -49,10 +53,46 @@ struct Entity {
 }
 
 impl Entity {
-    fn new(texture: Texture, position: Vec2<f32>, velocity: Vec2<f32>) -> Entity {
-        Entity { texture, position, velocity }
+    fn new(texture: Texture, position: Vec2<f32>) -> Entity {
+        Entity::with_velocity(texture, position, Vec2::zero())
     }
 
+    fn with_velocity(texture: Texture, position: Vec2<f32>, velocity: Vec2<f32>) -> Entity {
+        Entity {
+            texture,
+            position,
+            velocity,
+        }
+    }
+
+    fn update(&mut self) {
+        self.position += self.velocity;
+    }
+
+    fn width(&self) -> f32 {
+        self.texture.width() as f32
+    }
+
+    fn height(&self) -> f32  {
+        self.texture.height() as f32
+    }
+
+    fn bounds(&self) -> Rectangle {
+        Rectangle::new(
+            self.position.x,
+            self.position.y,
+            self.width(),
+            self.height(),
+        )
+    }
+
+    fn intersects(&self, entity :&Entity) -> bool {
+        self.bounds().intersects(&entity.bounds())
+    }
+
+    fn y_coordinate_centre(&self) -> f32 {
+        self.position.y + (self.height() / 2.0)
+    }
 }
 
 struct GameState {
@@ -84,16 +124,16 @@ impl GameState {
             WINDOW_HEIGHT / 2.0,
         );
         let ball_velocity = Vec2::new(
-            1 as f32,
-            1 as f32,
+            -BALL_SPEED,
+            0.0,
         );
 
         let txt = Text::new("SiMiTo", Font::vector(ctx, "./res/lato/Lato-BoldItalic.ttf", 12.0)?);
 
         Ok(GameState { background: Background::new(),
-            player1: Entity::new(player1_texture, player1_position, Vec2::zero()),
-            player2: Entity::new(player2_texture, player2_position, Vec2::zero()),
-            ball: Entity::new(ball_texture, ball_position, ball_velocity),
+            player1: Entity::new(player1_texture, player1_position),
+            player2: Entity::new(player2_texture, player2_position),
+            ball: Entity::with_velocity(ball_texture, ball_position, ball_velocity),
             rotation: 0f32,
             txt,
         })
@@ -103,6 +143,40 @@ impl GameState {
 
 fn draw_entity(ctx: &mut Context, entity: &Entity) {
     entity.texture.draw(ctx, entity.position);
+}
+
+impl GameState {
+    fn ball_bounce(&mut self) {
+        let ball = &self.ball;
+
+        let paddle_hit = if ball.intersects(&self.player1) {
+            Some(&self.player1)
+        } else if ball.intersects(&self.player2) {
+            Some(&self.player2)
+        } else {
+            None
+        };
+
+        if let Some(paddle) = paddle_hit {
+            self.ball.velocity.x = -(self.ball.velocity.x + (BALL_ACC * self.ball.velocity.x.signum()));
+
+            let offset = (paddle.y_coordinate_centre() - self.ball.y_coordinate_centre()) / paddle.height();
+
+            self.ball.velocity.y += PADDLE_SPIN * -offset;
+        }
+
+        if self.ball.position.y <= 0.0 || self.ball.position.y + self.ball.height() >= WINDOW_HEIGHT
+        {
+            self.ball.velocity.y = -self.ball.velocity.y;
+        }
+
+        if self.ball.position.x <= 0.0 || self.ball.position.x + self.ball.width() >= WINDOW_WIDTH
+        {
+            self.ball.velocity.x = -self.ball.velocity.x;
+        }
+
+        self.ball.update();
+    }
 }
 
 impl State for GameState {
@@ -115,9 +189,29 @@ impl State for GameState {
             self.player1.position.y += PADDLE_SPEED;
         }
 
+        if input::is_key_down(ctx, Key::Up) {
+            self.player2.position.y -= PADDLE_SPEED;
+        }
+
+        if input::is_key_down(ctx, Key::Down) {
+            self.player2.position.y += PADDLE_SPEED;
+        }
+
         self.background.update();
 
         self.rotation = self.rotation + 0.01f32;
+
+        self.ball_bounce();
+
+        if self.ball.position.x < 0.0 {
+            window::quit(ctx);
+            println!("Player 2 wins!");
+        }
+
+        if self.ball.position.x > WINDOW_WIDTH {
+            window::quit(ctx);
+            println!("Player 1 wins!");
+        }
 
         Ok(())
     }
