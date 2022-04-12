@@ -4,6 +4,7 @@ use tetra::graphics::text::{Font, Text};
 use tetra::input::{self, Key};
 use tetra::math::Vec2;
 use tetra::window;
+use tetra::window::WindowPosition::Positioned;
 
 const PADDLE_SPIN: f32 = 4.0;
 const BALL_ACC: f32 = 0.05;
@@ -49,7 +50,39 @@ impl Background {
 struct Entity {
     texture: Texture,
     position: Vec2<f32>,
+    original: Vec2<f32>,
     velocity: Vec2<f32>,
+}
+
+struct Score {
+    text: Text,
+    player1: i32,
+    player2: i32,
+    position: Vec2<f32>,
+}
+
+impl Score {
+    fn draw(&mut self, ctx: &mut Context) {
+        self.text.draw(ctx, DrawParams::new().position(self.position));
+    }
+
+    fn goal_player_1(&mut self) {
+        self.player1 += 1;
+        self.update_score_text()
+    }
+
+    fn goal_player_2(&mut self) {
+        self.player2 += 1;
+        self.update_score_text()
+    }
+
+    fn update_score_text(&mut self) {
+        self.text.set_content(format!("{} : {}", self.player1, self.player2));
+    }
+
+    fn format(a: i32, b: i32) -> String {
+        format!("{} : {}", a, b)
+    }
 }
 
 impl Entity {
@@ -61,6 +94,7 @@ impl Entity {
         Entity {
             texture,
             position,
+            original: position,
             velocity,
         }
     }
@@ -93,6 +127,12 @@ impl Entity {
     fn y_coordinate_centre(&self) -> f32 {
         self.position.y + (self.height() / 2.0)
     }
+
+    fn reset(&mut self, velocity: Vec2<f32>) {
+        self.position.x = self.original.x;
+        self.position.y = self.original.y;
+        self.velocity = velocity;
+    }
 }
 
 struct GameState {
@@ -102,6 +142,7 @@ struct GameState {
     ball: Entity,
     rotation: f32,
     txt: Text,
+    score: Score,
 }
 
 impl GameState {
@@ -128,14 +169,16 @@ impl GameState {
             0.0,
         );
 
-        let txt = Text::new("SiMiTo", Font::vector(ctx, "./res/lato/Lato-BoldItalic.ttf", 12.0)?);
+        let branding = Text::new("SiMiTo", Font::vector(ctx, "./res/lato/Lato-BoldItalic.ttf", 12.0)?);
+        let score = Text::new(Score::format(0, 0), Font::vector(ctx, "./res/lato/Lato-Regular.ttf", 24.0)?);
 
         Ok(GameState { background: Background::new(),
             player1: Entity::new(player1_texture, player1_position),
             player2: Entity::new(player2_texture, player2_position),
             ball: Entity::with_velocity(ball_texture, ball_position, ball_velocity),
             rotation: 0f32,
-            txt,
+            txt: branding,
+            score: Score { text: score, player1: 0, player2: 0, position: Vec2::new(WINDOW_WIDTH / 2., WINDOW_HEIGHT - 40.) },
         })
     }
 
@@ -199,13 +242,18 @@ impl State for GameState {
         self.ball_bounce();
 
         if self.ball.position.x <= 0.0 {
-            window::quit(ctx);
-            println!("Player 2 wins!");
+            self.score.goal_player_2();
+            self.ball.reset(Vec2::new(-BALL_SPEED, 0.));
         }
 
         if self.ball.position.x >= WINDOW_WIDTH {
+            self.score.goal_player_1();
+            self.ball.reset(Vec2::new(BALL_SPEED, 0.));
+        }
+
+        if self.score.player1 + self.score.player2 >= 10 {
             window::quit(ctx);
-            println!("Player 1 wins!");
+            println!("You should read a book or sth.");
         }
 
         Ok(())
@@ -219,6 +267,8 @@ impl State for GameState {
         draw_entity(ctx, &self.ball);
 
         self.txt.draw(ctx, DrawParams::new().position(Vec2::new(WINDOW_WIDTH / 2f32,50f32)).rotation(self.rotation));
+
+        self.score.draw(ctx);
 
         Ok(())
     }
