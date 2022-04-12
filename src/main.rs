@@ -170,11 +170,6 @@ impl GameState {
             self.ball.velocity.y = -self.ball.velocity.y;
         }
 
-        if self.ball.position.x <= 0.0 || self.ball.position.x + self.ball.width() >= WINDOW_WIDTH
-        {
-            self.ball.velocity.x = -self.ball.velocity.x;
-        }
-
         self.ball.update();
     }
 }
@@ -203,12 +198,12 @@ impl State for GameState {
 
         self.ball_bounce();
 
-        if self.ball.position.x < 0.0 {
+        if self.ball.position.x <= 0.0 {
             window::quit(ctx);
             println!("Player 2 wins!");
         }
 
-        if self.ball.position.x > WINDOW_WIDTH {
+        if self.ball.position.x >= WINDOW_WIDTH {
             window::quit(ctx);
             println!("Player 1 wins!");
         }
