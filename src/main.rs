@@ -7,7 +7,7 @@ use tetra::window;
 use tetra::window::WindowPosition::Positioned;
 
 const PADDLE_SPIN: f32 = 4.0;
-const BALL_ACC: f32 = 0.05;
+const BALL_ACC: f32 = 1.05;
 const BALL_SPEED: f32 = 5.0;
 const PADDLE_SPEED: f32 = 8.0;
 const WINDOW_WIDTH: f32 = 1280.0;
@@ -201,7 +201,7 @@ impl GameState {
         };
 
         if let Some(paddle) = paddle_hit {
-            self.ball.velocity.x = -(self.ball.velocity.x + (BALL_ACC * self.ball.velocity.x.signum()));
+            self.ball.velocity.x = -(self.ball.velocity.x * BALL_ACC);
 
             let offset = (paddle.y_coordinate_centre() - self.ball.y_coordinate_centre()) / paddle.height();
 
