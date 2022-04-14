@@ -188,7 +188,58 @@ fn draw_entity(ctx: &mut Context, entity: &Entity) {
     entity.texture.draw(ctx, entity.position);
 }
 
+
+impl State for GameState {
+    fn update(&mut self, ctx: &mut Context) -> tetra::Result {
+        self.process_user_input(ctx);
+        self.background.update();
+        self.update_logo();
+        self.ball_bounce();
+        self.update_score();
+
+        if self.score.player1 + self.score.player2 >= 10 {
+            window::quit(ctx);
+            println!("You should read a book or sth.");
+        }
+
+        Ok(())
+    }
+
+
+    fn draw(&mut self, ctx: &mut Context) -> tetra::Result {
+        graphics::clear(ctx, self.background.color());
+
+        draw_entity(ctx, &self.player1);
+        draw_entity(ctx, &self.player2);
+        draw_entity(ctx, &self.ball);
+
+        self.txt.draw(ctx, DrawParams::new().position(Vec2::new(WINDOW_WIDTH / 2f32,50f32)).rotation(self.rotation));
+
+        self.score.draw(ctx);
+
+        Ok(())
+    }
+}
+
 impl GameState {
+    fn process_user_input(&mut self, ctx: &mut Context) {
+        if input::is_key_down(ctx, Key::W) {
+            self.player1.position.y -= PADDLE_SPEED;
+        }
+
+        if input::is_key_down(ctx, Key::S) {
+            self.player1.position.y += PADDLE_SPEED;
+        }
+
+        if input::is_key_down(ctx, Key::Up) {
+            self.player2.position.y -= PADDLE_SPEED;
+        }
+
+        if input::is_key_down(ctx, Key::Down) {
+            self.player2.position.y += PADDLE_SPEED;
+        }
+    }
+
     fn ball_bounce(&mut self) {
         let ball = &self.ball;
 
@@ -205,7 +256,7 @@ impl GameState {
 
             let offset = (paddle.y_coordinate_centre() - self.ball.y_coordinate_centre()) / paddle.height();
 
-            self.ball.velocity.y += PADDLE_SPIN * -offset;
+            self.ball.velocity.y = (self.ball.velocity.y + PADDLE_SPIN * -offset) * BALL_ACC;
         }
 
         if self.ball.position.y <= 0.0 || self.ball.position.y + self.ball.height() >= WINDOW_HEIGHT
@@ -215,32 +266,12 @@ impl GameState {
 
         self.ball.update();
     }
-}
 
-impl State for GameState {
-    fn update(&mut self, ctx: &mut Context) -> tetra::Result {
-        if input::is_key_down(ctx, Key::W) {
-            self.player1.position.y -= PADDLE_SPEED;
-        }
-
-        if input::is_key_down(ctx, Key::S) {
-            self.player1.position.y += PADDLE_SPEED;
-        }
-
-        if input::is_key_down(ctx, Key::Up) {
-            self.player2.position.y -= PADDLE_SPEED;
-        }
-
-        if input::is_key_down(ctx, Key::Down) {
-            self.player2.position.y += PADDLE_SPEED;
-        }
-
-        self.background.update();
-
+    fn update_logo(&mut self) {
         self.rotation = self.rotation + 0.01f32;
+    }
 
-        self.ball_bounce();
-
+    fn update_score(&mut self) {
         if self.ball.position.x <= 0.0 {
             self.score.goal_player_2();
             self.ball.reset(Vec2::new(-BALL_SPEED, 0.));
@@ -250,27 +281,6 @@ impl State for GameState {
             self.score.goal_player_1();
             self.ball.reset(Vec2::new(BALL_SPEED, 0.));
         }
-
-        if self.score.player1 + self.score.player2 >= 10 {
-            window::quit(ctx);
-            println!("You should read a book or sth.");
-        }
-
-        Ok(())
-    }
-
-    fn draw(&mut self, ctx: &mut Context) -> tetra::Result {
-        graphics::clear(ctx, self.background.color());
-
-        draw_entity(ctx, &self.player1);
-        draw_entity(ctx, &self.player2);
-        draw_entity(ctx, &self.ball);
-
-        self.txt.draw(ctx, DrawParams::new().position(Vec2::new(WINDOW_WIDTH / 2f32,50f32)).rotation(self.rotation));
-
-        self.score.draw(ctx);
-
-        Ok(())
     }
 }
 
