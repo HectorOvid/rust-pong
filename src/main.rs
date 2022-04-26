@@ -12,6 +12,7 @@ const BALL_SPEED: f32 = 5.0;
 const PADDLE_SPEED: f32 = 8.0;
 const WINDOW_WIDTH: f32 = 1280.0;
 const WINDOW_HEIGHT: f32 = 960.0;
+const SCORE_TO_WIN: i32 = 2;
 
 struct Background {
     blue: f32,
@@ -82,6 +83,12 @@ impl Score {
 
     fn format(a: i32, b: i32) -> String {
         format!("{} : {}", a, b)
+    }
+
+    fn reset_score(&mut self) {
+        self.player1 = 0;
+        self.player2 = 0;
+        self.update_score_text()
     }
 }
 
@@ -251,8 +258,8 @@ impl State for GameState {
             self.ball.reset(Vec2::new(BALL_SPEED, 0.));
         }
 
-        if self.score.player1 + self.score.player2 >= 10 {
-            window::quit(ctx);
+        if self.score.player1 >= SCORE_TO_WIN || self.score.player2 >= SCORE_TO_WIN {
+            self.score.reset_score();
             println!("You should read a book or sth.");
         }
 
